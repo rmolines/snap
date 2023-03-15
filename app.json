@@ -1,10 +1,39 @@
 {
-  "expo": {
-    "scheme": "acme",
-    "web": {
-      "bundler": "metro"
-    },
-    "name": "snap",
-    "slug": "snap"
-  }
+	"expo": {
+		"scheme": "acme",
+		"web": {
+			"bundler": "metro"
+		},
+		"name": "snap",
+		"slug": "snap",
+		"plugins": [
+			[
+				"react-native-auth0",
+				{
+					"domain": "dev-e3qx41fv.us.auth0.com"
+				}
+			],
+			[
+				"expo-camera",
+				{
+					"cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
+				}
+			]
+		],
+		"android": {
+			"package": "com.rmolines.snap",
+			"permissions": [
+				"android.permission.CAMERA",
+				"android.permission.RECORD_AUDIO"
+			]
+		},
+		"ios": {
+			"bundleIdentifier": "com.rmolines.snap"
+		},
+		"extra": {
+			"eas": {
+				"projectId": "10582f7e-4dce-48af-b43d-9ca1484ed0cf"
+			}
+		}
+	}
 }
