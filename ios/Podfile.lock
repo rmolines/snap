@@ -23,6 +23,8 @@ PODS:
   - EXJSONUtils (0.5.1)
   - EXManifests (0.5.2):
     - EXJSONUtils
+  - EXNotifications (0.18.1):
+    - ExpoModulesCore
   - Expo (48.0.6):
     - ExpoModulesCore
   - expo-dev-client (2.1.5):
@@ -97,6 +99,8 @@ PODS:
     - expo-dev-menu/GestureHandler
     - expo-dev-menu/Reanimated
     - expo-dev-menu/SafeAreaView
+  - ExpoDevice (5.2.1):
+    - ExpoModulesCore
   - ExpoImage (1.0.0):
     - ExpoModulesCore
     - SDWebImage (~> 5.15.0)
@@ -105,6 +109,8 @@ PODS:
     - SDWebImageWebPCoder (~> 0.9.1)
   - ExpoImageManipulator (11.1.1):
     - EXImageLoader
+    - ExpoModulesCore
+  - ExpoImagePicker (14.1.1):
     - ExpoModulesCore
   - ExpoKeepAwake (12.0.1):
     - ExpoModulesCore
@@ -554,13 +560,16 @@ DEPENDENCIES:
   - EXImageLoader (from `../node_modules/expo-image-loader/ios`)
   - EXJSONUtils (from `../node_modules/expo-json-utils/ios`)
   - EXManifests (from `../node_modules/expo-manifests/ios`)
+  - EXNotifications (from `../node_modules/expo-notifications/ios`)
   - Expo (from `../node_modules/expo`)
   - expo-dev-client (from `../node_modules/expo-dev-client/ios`)
   - expo-dev-launcher (from `../node_modules/expo-dev-launcher`)
   - expo-dev-menu (from `../node_modules/expo-dev-menu`)
   - expo-dev-menu-interface (from `../node_modules/expo-dev-menu-interface/ios`)
+  - ExpoDevice (from `../node_modules/expo-device/ios`)
   - ExpoImage (from `../node_modules/expo-image/ios`)
   - ExpoImageManipulator (from `../node_modules/expo-image-manipulator/ios`)
+  - ExpoImagePicker (from `../node_modules/expo-image-picker/ios`)
   - ExpoKeepAwake (from `../node_modules/expo-keep-awake/ios`)
   - ExpoModulesCore (from `../node_modules/expo-modules-core`)
   - ExpoWebBrowser (from `../node_modules/expo-web-browser/ios`)
@@ -646,6 +655,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-json-utils/ios"
   EXManifests:
     :path: "../node_modules/expo-manifests/ios"
+  EXNotifications:
+    :path: "../node_modules/expo-notifications/ios"
   Expo:
     :path: "../node_modules/expo"
   expo-dev-client:
@@ -656,10 +667,14 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-dev-menu"
   expo-dev-menu-interface:
     :path: "../node_modules/expo-dev-menu-interface/ios"
+  ExpoDevice:
+    :path: "../node_modules/expo-device/ios"
   ExpoImage:
     :path: "../node_modules/expo-image/ios"
   ExpoImageManipulator:
     :path: "../node_modules/expo-image-manipulator/ios"
+  ExpoImagePicker:
+    :path: "../node_modules/expo-image-picker/ios"
   ExpoKeepAwake:
     :path: "../node_modules/expo-keep-awake/ios"
   ExpoModulesCore:
@@ -760,13 +775,16 @@ SPEC CHECKSUMS:
   EXImageLoader: fd053169a8ee932dd83bf1fe5487a50c26d27c2b
   EXJSONUtils: 48b1e764ac35160e6f54d21ab60d7d9501f3e473
   EXManifests: 500666d48e8dd7ca5a482c9e729e4a7a6c34081b
+  EXNotifications: dd628737af60fc8cc62dccebacd326b0fbbc0dcb
   Expo: 04ba1ddde0be07aff4306ae636a1804810679145
   expo-dev-client: 7c1ef51516853465f4d448c14ddf365167d20361
   expo-dev-launcher: 90de99d9e5d1a883d81355ca10e87c2f3c81d46e
   expo-dev-menu: d4369e74d8d21a0ccdee35f7c732e7118b0fee16
   expo-dev-menu-interface: 6c82ae323c4b8724dead4763ce3ff24a2108bdb1
+  ExpoDevice: e0bebf68f978b3d353377ce42e73c20c0a070215
   ExpoImage: b6a65c4aa891cdf00bfba0da46df14b27ae09cc7
   ExpoImageManipulator: 85ab87e9641b9d83108f8d603e0418c12fc19e2d
+  ExpoImagePicker: 270dea232b3a072d981dd564e2cafc63a864edb1
   ExpoKeepAwake: 69f5f627670d62318410392d03e0b5db0f85759a
   ExpoModulesCore: 1667335d4f4c9b7801990930e6f0eea42c916a21
   ExpoWebBrowser: 033d34c478d9986da2f1679729041423837626e0

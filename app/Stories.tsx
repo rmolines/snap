@@ -6,6 +6,7 @@ import {
 	Pressable,
 	Modal,
 	ActionSheetIOS,
+	ActivityIndicator,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { Link, useRouter, useSearchParams } from "expo-router";
@@ -13,6 +14,7 @@ import { supabase } from "../lib/supabase";
 import { Image } from "expo-image";
 import { AntDesign } from "@expo/vector-icons";
 import { FileObject } from "@supabase/storage-js";
+import { useAuth0 } from "react-native-auth0";
 
 export default function Stories() {
 	const { albumId } = useSearchParams();
@@ -20,8 +22,10 @@ export default function Stories() {
 	const [picturesUrl, setPicturesUrl] = useState<string[]>([]);
 	const [index, setIndex] = useState(0);
 	const router = useRouter();
+	const [loading, setLoading] = useState(true);
+	const { user } = useAuth0();
 
-	async function getPictures(id: string) {
+	async function getPictures2(id: string) {
 		try {
 			const { data, error } = await supabase.storage
 				.from("photos")
@@ -38,10 +42,35 @@ export default function Stories() {
 			for (const file of data) {
 				await downloadPictures(file);
 			}
+
+			return;
 		} catch (error) {
 			Alert.alert(error.message);
-		} finally {
-			//   setLoading(false)
+		}
+	}
+
+	async function getPictures(id: string) {
+		try {
+			const { data, error } = await supabase
+				.from("album_photos")
+				.select()
+				.eq("album_id", id);
+
+			if (error) {
+				throw error;
+			}
+
+			console.log(data);
+			setPictures(data);
+
+			for (const file of data) {
+				await downloadPictures(file);
+			}
+
+			return;
+		} catch (error) {
+			console.error(error);
+			Alert.alert(error.message);
 		}
 	}
 
@@ -56,16 +85,17 @@ export default function Stories() {
 				throw error;
 			}
 
-			console.log(data);
-
 			if (data) {
 				Alert.alert("Successfully deleted photo!");
-				await getPictures(albumId);
 
-				if (index === pictures.length - 1) {
-					router.push("/");
-				}
-				setIndex((prev) => prev + 1);
+				router.push("/");
+				// await getPictures(albumId);
+
+				// if (pictures.length === 0) {
+				// 	router.push("/");
+				// } else if (index > 0) {
+				// 	setIndex((prev) => prev - 1);
+				// }
 			}
 		} catch (error) {
 			Alert.alert(error.message);
@@ -76,13 +106,15 @@ export default function Stories() {
 		try {
 			const { data, error } = await supabase.storage
 				.from("photos")
-				.getPublicUrl(`${albumId}/${file.name}`);
+				.getPublicUrl(`${albumId}/${file.photo_name}`);
 
 			if (error) {
 				throw error;
 			}
 
 			setPicturesUrl((prev) => [...prev, data.publicUrl]);
+
+			return;
 		} catch (error) {
 			if (error instanceof Error) {
 				console.log("Error downloading image: ", error.message);
@@ -90,17 +122,24 @@ export default function Stories() {
 		}
 	}
 
+	async function seePicture(path: string) {
+		try {
+			const { data, error } = await supabase
+				.from("seen_photos")
+				.upsert({ sub: user.sub, photo_name: path, album_id: albumId });
+
+			if (error) {
+				throw error;
+			}
+		} catch (error) {
+			Alert.alert(error.message);
+		}
+	}
 	useEffect(() => {
 		if (albumId) {
 			getPictures(albumId.toString());
 		}
 	}, []);
-
-	// useEffect(() => {
-	// 	if (pictures) {
-	// 		downloadPicture(pictures[index].name);
-	// 	}
-	// }, [pictures, index]);
 
 	return (
 		<SafeAreaView className="flex-1 bg-black">
@@ -108,10 +147,48 @@ export default function Stories() {
 				{picturesUrl && (
 					<View className="relative flex-1 overflow-hidden rounded-xl">
 						<Image
-							className="flex-1 justify-end p-4"
+							className="relative flex-1 justify-end p-4"
 							source={picturesUrl[index]}
+							onLoadEnd={() => {
+								setLoading(false);
+								seePicture(pictures[index].photo_name);
+								console.log(pictures[index].user_name);
+							}}
 						>
-							<View className="w-full flex-row gap-x-1">
+							<Text
+								className="mb-2 text-base font-semibold text-white shadow-lg"
+								style={[
+									{
+										shadowColor: "#000",
+										shadowOffset: {
+											width: 0,
+											height: 2,
+										},
+										shadowOpacity: 0.25,
+										shadowRadius: 3.84,
+
+										elevation: 5,
+									},
+								]}
+							>
+								{pictures && pictures[index].user_name}
+							</Text>
+							<View
+								className="w-full flex-row gap-x-1"
+								style={[
+									{
+										shadowColor: "#000",
+										shadowOffset: {
+											width: 0,
+											height: 2,
+										},
+										shadowOpacity: 0.25,
+										shadowRadius: 3.84,
+
+										elevation: 5,
+									},
+								]}
+							>
 								{pictures &&
 									pictures.map((e, ind) => {
 										if (index >= ind) {
@@ -131,10 +208,31 @@ export default function Stories() {
 										}
 									})}
 							</View>
+							{loading && (
+								<View className="absolute top-0 left-0 z-50 h-screen w-screen flex-1 items-center justify-center bg-black/50">
+									<ActivityIndicator
+										size={"large"}
+										color="white"
+									/>
+								</View>
+							)}
 						</Image>
 						<Link
 							href={"/"}
 							className="absolute top-4 left-4 z-10 w-fit"
+							style={[
+								{
+									shadowColor: "#000",
+									shadowOffset: {
+										width: 0,
+										height: 2,
+									},
+									shadowOpacity: 0.25,
+									shadowRadius: 3.84,
+
+									elevation: 5,
+								},
+							]}
 						>
 							<AntDesign name="close" size={44} color="white" />
 						</Link>
@@ -159,6 +257,19 @@ export default function Stories() {
 								)
 							}
 							className="absolute top-4 right-4 z-10 w-fit"
+							style={[
+								{
+									shadowColor: "#000",
+									shadowOffset: {
+										width: 0,
+										height: 2,
+									},
+									shadowOpacity: 0.25,
+									shadowRadius: 3.84,
+
+									elevation: 5,
+								},
+							]}
 						>
 							<AntDesign
 								name="ellipsis1"

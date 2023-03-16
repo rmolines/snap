@@ -4,8 +4,8 @@ import {
 	CameraType,
 	ImageType,
 } from "expo-camera";
-import { View, Text, Pressable } from "react-native";
-import React, { useRef, useState } from "react";
+import { View, Text, Pressable, TouchableHighlight, Alert } from "react-native";
+import React, { useEffect, useState } from "react";
 import { Link, useRouter, useSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AntDesign } from "@expo/vector-icons";
@@ -13,6 +13,32 @@ import { supabase } from "../lib/supabase";
 import { Image } from "expo-image";
 import { FlipType, manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { ActivityIndicator } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { useAuth0 } from "react-native-auth0";
+
+async function sendPushNotification(
+	expoPushToken: string,
+	title: string,
+	body: string
+) {
+	const message = {
+		to: expoPushToken,
+		sound: "default",
+		title,
+		body,
+		// data: { someData: "goes here" },
+	};
+
+	await fetch("https://exp.host/--/api/v2/push/send", {
+		method: "POST",
+		headers: {
+			Accept: "application/json",
+			"Accept-encoding": "gzip, deflate",
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify(message),
+	});
+}
 
 export default function TakePhoto() {
 	const [type, setType] = useState(CameraType.back);
@@ -21,8 +47,14 @@ export default function TakePhoto() {
 	const [uploadingPicture, setUploadingPicture] = useState(false);
 	const [takingPicture, setTakingPicture] = useState(false);
 	const [picture, setPicture] = useState<CameraCapturedPicture>();
+	const [tokens, setTokens] = useState();
 	const router = useRouter();
-	const { id } = useSearchParams();
+	const { id, album_name } = useSearchParams();
+	const { user } = useAuth0();
+
+	useEffect(() => {
+		getPushTokens();
+	}, []);
 
 	if (!permission) {
 		// Camera permissions are still loading
@@ -49,24 +81,30 @@ export default function TakePhoto() {
 		);
 	}
 
-	async function takePicture(params: type) {
+	async function takePicture() {
 		try {
 			setTakingPicture(true);
 			const imageType = ImageType.jpg;
 			let picture = await camera.takePictureAsync({
 				imageType,
 				isImageMirror: false,
+				quality: 1,
 			});
 
 			if (type === CameraType.front) {
 				picture = await manipulateAsync(
 					picture.uri,
 					[{ rotate: 180 }, { flip: FlipType.Vertical }],
-					{ compress: 1, format: SaveFormat.JPEG }
+					{ compress: 0, format: SaveFormat.JPEG }
 				);
+				setPicture(picture);
+			} else {
+				picture = await manipulateAsync(picture.uri, [], {
+					compress: 0,
+					format: SaveFormat.JPEG,
+				});
+				setPicture(picture);
 			}
-
-			setPicture(picture);
 		} catch (error) {
 			console.error(error);
 		} finally {
@@ -88,19 +126,81 @@ export default function TakePhoto() {
 			const formData = new FormData();
 			formData.append("file", photo);
 
-			const filePath = `${id}/${Math.random()}.${imageType}`;
+			const fileName = `${Math.random()}.${imageType}`;
 			const { error: errorStorage } = await supabase.storage
 				.from("photos")
-				.upload(filePath, formData);
+				.upload(`${id}/${fileName}`, formData);
 
 			if (errorStorage) {
 				throw errorStorage;
 			}
+
+			const { data, error: error2 } = await supabase
+				.from("album_photos")
+				.insert({
+					sub: user.sub,
+					user_name: user.name,
+					album_id: `${id}`,
+					photo_name: fileName,
+				});
+
+			if (error2) {
+				throw error2;
+			}
+
+			const title = `Togather`;
+			const body = `${user.name} postou uma foto em ${album_name}`;
+			tokens.forEach((token) =>
+				sendPushNotification(token.expo_token, title, body)
+			);
 		} catch (error) {
 			console.error(error);
+			Alert.alert(error.message);
 		} finally {
 			setUploadingPicture(false);
 			router.push("/");
+		}
+	}
+
+	const pickImageAsync = async () => {
+		const result = await ImagePicker.launchImageLibraryAsync({
+			// allowsEditing: true,
+			quality: 1,
+		});
+
+		const picture = await manipulateAsync(result.assets[0].uri, [], {
+			compress: 0,
+			format: SaveFormat.JPEG,
+		});
+
+		if (!result.canceled) {
+			setPicture(picture);
+			console.log(picture);
+		} else {
+			alert("You did not select any image.");
+		}
+	};
+
+	async function getPushTokens() {
+		try {
+			const { data, error, status } = await supabase
+				.from("album_members")
+				// .select("album(name), album(id), sub")
+				.select("expo_token")
+				.eq("album", id);
+
+			if (error && status !== 406) {
+				throw error;
+			}
+
+			if (data) {
+				setTokens(data);
+				console.log(data);
+			}
+		} catch (error) {
+			if (error instanceof Error) {
+				Alert.alert(error.message);
+			}
 		}
 	}
 
@@ -127,10 +227,20 @@ export default function TakePhoto() {
 					) : (
 						<Camera
 							type={type}
-							className="flex-1"
+							className="relative flex-1"
 							// ref={cameraRef}
 							ref={(ref) => setCamera(ref)}
 						>
+							<Link
+								href={"/"}
+								className="absolute top-4 left-4 z-10 w-fit"
+							>
+								<AntDesign
+									name="close"
+									size={44}
+									color="white"
+								/>
+							</Link>
 							{takingPicture && (
 								<View className="flex-1 items-center justify-center bg-black/50">
 									{/* <AntDesign
@@ -185,16 +295,19 @@ export default function TakePhoto() {
 					) : (
 						<>
 							<View className="flex-1">
-								<Link href="/" className="m-10 self-end">
+								<TouchableHighlight
+									onPress={pickImageAsync}
+									className="m-10 self-end"
+								>
 									{/* <Text className="text-center text-2xl font-semibold text-white">
 							Back
 						</Text> */}
 									<AntDesign
-										name="close"
+										name="picture"
 										size={40}
 										color="white"
 									/>
-								</Link>
+								</TouchableHighlight>
 							</View>
 							<Pressable
 								className="h-20 w-20 self-center rounded-full border-[6px] border-white"

@@ -7,8 +7,10 @@ import {
 	FlatList,
 	Share,
 	ActionSheetIOS,
+	Platform,
+	RefreshControl,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Login from "./Login";
 import { useAuth0 } from "react-native-auth0";
 import { supabase } from "../lib/supabase";
@@ -17,14 +19,88 @@ import { Link, useRouter, useSearchParams } from "expo-router";
 import * as Linking from "expo-linking";
 import * as Sharing from "expo-sharing";
 import "react-native-gesture-handler";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+
+Notifications.setNotificationHandler({
+	handleNotification: async () => ({
+		shouldShowAlert: true,
+		shouldPlaySound: false,
+		shouldSetBadge: false,
+	}),
+});
+
+async function sendPushNotification(expoPushToken) {
+	const message = {
+		to: expoPushToken,
+		sound: "default",
+		title: "Original Title",
+		body: "And here is the body!",
+		data: { someData: "goes here" },
+	};
+
+	await fetch("https://exp.host/--/api/v2/push/send", {
+		method: "POST",
+		headers: {
+			Accept: "application/json",
+			"Accept-encoding": "gzip, deflate",
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify(message),
+	});
+}
+
+async function registerForPushNotificationsAsync() {
+	let token;
+	if (Device.isDevice) {
+		const { status: existingStatus } =
+			await Notifications.getPermissionsAsync();
+		let finalStatus = existingStatus;
+		if (existingStatus !== "granted") {
+			const { status } = await Notifications.requestPermissionsAsync();
+			finalStatus = status;
+		}
+		if (finalStatus !== "granted") {
+			alert("Failed to get push token for push notification!");
+			return;
+		}
+		token = (await Notifications.getExpoPushTokenAsync()).data;
+	} else {
+		alert("Must use physical device for Push Notifications");
+	}
+
+	if (Platform.OS === "android") {
+		Notifications.setNotificationChannelAsync("default", {
+			name: "default",
+			importance: Notifications.AndroidImportance.MAX,
+			vibrationPattern: [0, 250, 250, 250],
+			lightColor: "#FF231F7C",
+		});
+	}
+
+	return token;
+}
 
 export default function Index() {
-	const { user } = useAuth0();
+	const { user, clearSession } = useAuth0();
 	const [albums, setAlbums] = useState();
 	const [albumPhotos, setAlbumPhotos] = useState();
 	const router = useRouter();
 	const id = useSearchParams();
 	const url = Linking.useURL();
+	const [expoPushToken, setExpoPushToken] = useState("");
+	const [notification, setNotification] = useState(false);
+	const notificationListener = useRef();
+	const responseListener = useRef();
+	const [refreshing, setRefreshing] = React.useState(false);
+
+	const onRefresh = React.useCallback(() => {
+		setRefreshing(true);
+		// setTimeout(() => {
+		// 	setRefreshing(false);
+		// }, 2000);
+		getAlbums().then(() => setRefreshing(false));
+	}, []);
 
 	async function getAlbum(id: string) {
 		try {
@@ -74,7 +150,9 @@ export default function Index() {
 				setAlbums(data.map((d) => d.album));
 			}
 
-			data.forEach((d) => getPhotos(d.album.id));
+			// data.forEach((d) => getPhotos(d.album.id));
+
+			await Promise.all(data.map((d) => getPhotos(d.album.id)));
 		} catch (error) {
 			if (error instanceof Error) {
 				Alert.alert(error.message);
@@ -113,7 +191,11 @@ export default function Index() {
 		try {
 			const { data, error, status } = await supabase
 				.from("album_members")
-				.insert({ sub: user.sub, album: id });
+				.insert({
+					sub: user.sub,
+					album: id,
+					expo_token: expoPushToken,
+				});
 
 			if (error && status !== 406) {
 				throw error;
@@ -150,15 +232,35 @@ export default function Index() {
 
 	async function getPhotos(id: number) {
 		try {
-			const { data, error } = await supabase.storage
-				.from("photos")
-				.list(`${id}`);
+			const { count, error } = await supabase
+				.from("album_photos")
+				.select("*", { count: "exact", head: true })
+				.eq("album_id", id);
 
 			if (error) {
 				throw error;
 			}
 
-			setAlbumPhotos((prev) => ({ ...prev, [id]: data }));
+			const { count: count2, error: error2 } = await supabase
+				.from("seen_photos")
+				.select("*", { count: "exact", head: true })
+				.eq("sub", user.sub)
+				.eq("album_id", id);
+
+			console.log({
+				photo_count: count,
+				unseen_photos: count - count2,
+				seen_photos: count2,
+			});
+
+			setAlbumPhotos((prev) => ({
+				...prev,
+				[id]: {
+					photo_count: count,
+					unseen_photos: count - count2,
+					seen_photos: count2,
+				},
+			}));
 		} catch (error) {
 			if (error instanceof Error) {
 				Alert.alert(error.message);
@@ -168,9 +270,17 @@ export default function Index() {
 		}
 	}
 
+	const logOut = async () => {
+		try {
+			await clearSession();
+		} catch (e) {
+			console.log(e);
+		}
+	};
+
 	useEffect(() => {
 		if (user && user.sub) {
-			getAlbums();
+			getAlbums().then();
 		}
 	}, [user]);
 
@@ -180,12 +290,89 @@ export default function Index() {
 		}
 	}, [url]);
 
+	useEffect(() => {
+		registerForPushNotificationsAsync().then((token) =>
+			setExpoPushToken(token)
+		);
+
+		notificationListener.current =
+			Notifications.addNotificationReceivedListener((notification) => {
+				console.log(notification);
+				setNotification(notification);
+			});
+
+		responseListener.current =
+			Notifications.addNotificationResponseReceivedListener(
+				(response) => {
+					console.log(response);
+				}
+			);
+
+		return () => {
+			Notifications.removeNotificationSubscription(
+				notificationListener.current
+			);
+			Notifications.removeNotificationSubscription(
+				responseListener.current
+			);
+		};
+	}, []);
+
 	return (
 		<>
 			{user ? (
 				<SafeAreaView>
 					<View className="flex h-screen flex-col pt-2">
 						<View className="relative flex w-full flex-row items-center justify-center border-b border-gray-200 px-8 pb-3">
+							<Pressable
+								className="absolute inset-y-0 left-6"
+								onPress={() => {
+									ActionSheetIOS.showActionSheetWithOptions(
+										{
+											options: [
+												"Cancel",
+												"Logout",
+												"Delete account",
+											],
+											destructiveButtonIndex: 2,
+											cancelButtonIndex: 0,
+											userInterfaceStyle: "light",
+										},
+										(buttonIndex) => {
+											if (buttonIndex === 0) {
+												// cancel action
+											} else if (buttonIndex === 1) {
+												logOut();
+											} else if (buttonIndex === 2) {
+												Alert.alert(
+													`Deseja deletar sua conta?`,
+													"Isto pode demorar até 14 dias",
+													[
+														{
+															text: "Cancel",
+															style: "cancel",
+														},
+														{
+															text: "Deletar",
+															style: "destructive",
+															onPress: () => {
+																logOut();
+															},
+														},
+													]
+												);
+											}
+										}
+									);
+								}}
+							>
+								<AntDesign
+									name="user"
+									size={30}
+									color="black"
+									className="absolute"
+								/>
+							</Pressable>
 							<Text className="text-2xl font-semibold">
 								Groups
 							</Text>
@@ -214,6 +401,12 @@ export default function Index() {
 								className="h-full"
 								data={albums}
 								keyExtractor={(item) => item.id}
+								refreshControl={
+									<RefreshControl
+										refreshing={refreshing}
+										onRefresh={onRefresh}
+									/>
+								}
 								renderItem={({ item }) => {
 									return (
 										<Pressable
@@ -223,7 +416,7 @@ export default function Index() {
 												if (
 													albumPhotos[item.id] &&
 													albumPhotos[item.id]
-														.length > 0
+														.photo_count > 0
 												) {
 													router.push({
 														pathname: "/Stories",
@@ -239,25 +432,45 @@ export default function Index() {
 													{item.name}
 												</Text>
 												{albumPhotos &&
+												albumPhotos[item.id] &&
+												albumPhotos[item.id]
+													.unseen_photos > 0 ? (
+													<View className="h-4 w-4 justify-center rounded-full bg-blue-500">
+														<Text className="text-center text-xs font-bold text-white">
+															{
+																albumPhotos[
+																	item.id
+																].unseen_photos
+															}
+														</Text>
+													</View>
+												) : (
+													albumPhotos &&
 													albumPhotos[item.id] &&
 													albumPhotos[item.id]
-														.length > 0 && (
-														<View className="h-5 w-5 justify-center rounded-full bg-blue-500">
-															<Text className="text-center text-xs font-extrabold text-white">
+														.seen_photos > 0 && (
+														<View className="h-4 w-4 justify-center rounded-full bg-gray-500">
+															<Text className="text-center text-xs font-bold text-white">
 																{
 																	albumPhotos[
 																		item.id
-																	].length
+																	]
+																		.seen_photos
 																}
 															</Text>
 														</View>
-													)}
+													)
+												)}
 											</View>
 											<View className="h-full flex-row items-center gap-x-2">
 												<Link
 													href={{
 														pathname: "/TakePhoto",
-														params: { id: item.id },
+														params: {
+															id: item.id,
+															album_name:
+																item.name,
+														},
 													}}
 													className="p-2"
 												>
