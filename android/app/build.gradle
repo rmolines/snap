@@ -113,12 +113,12 @@ android {
 
     compileSdkVersion rootProject.ext.compileSdkVersion
 
-    namespace 'com.rmolines.snap'
+    namespace 'com.rmolines.togather'
     defaultConfig {
-// @generated begin react-native-auth0-manifest-placeholder - expo prebuild (DO NOT MODIFY) sync-8adcd5730babe9ae52befa12713d2860293a2b3c
-manifestPlaceholders = [auth0Domain: "dev-e3qx41fv.us.auth0.com", auth0Scheme: "com.rmolines.snap"]
+// @generated begin react-native-auth0-manifest-placeholder - expo prebuild (DO NOT MODIFY) sync-fe764fb3d128893c3ec0946523593937d56fcb46
+manifestPlaceholders = [auth0Domain: "dev-e3qx41fv.us.auth0.com", auth0Scheme: "com.rmolines.togather"]
 // @generated end react-native-auth0-manifest-placeholder
-        applicationId 'com.rmolines.snap'
+        applicationId 'com.rmolines.togather'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

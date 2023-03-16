@@ -1,44 +1,49 @@
 {
-  "expo": {
-    "scheme": "acme",
-    "web": {
-      "bundler": "metro"
-    },
-    "name": "ToGather",
-    "slug": "ToGather",
-    "splash": {
-      "image": "./assets/splash.png",
-      "backgroundColor": "#ffffff"
-    },
-    "icon": "./assets/icon.png",
-    "plugins": [
-      [
-        "react-native-auth0",
-        {
-          "domain": "dev-e3qx41fv.us.auth0.com"
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
-        }
-      ]
-    ],
-    "android": {
-      "package": "com.rmolines.togather",
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ]
-    },
-    "ios": {
-      "bundleIdentifier": "com.rmolines.togather"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "ef7d76cd-f9e4-480c-9457-3402b6d48a15"
-      }
-    }
-  }
+	"expo": {
+		"scheme": "acme",
+		"web": {
+			"bundler": "metro"
+		},
+		"name": "ToGather",
+		"slug": "ToGather",
+		"splash": {
+			"image": "./assets/splash.png",
+			"backgroundColor": "#ffffff"
+		},
+		"icon": "./assets/icon.png",
+		"plugins": [
+			[
+				"react-native-auth0",
+				{
+					"domain": "dev-e3qx41fv.us.auth0.com"
+				}
+			],
+			[
+				"expo-camera",
+				{
+					"cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
+				}
+			]
+		],
+		"android": {
+			"package": "com.rmolines.togather",
+			"permissions": [
+				"android.permission.CAMERA",
+				"android.permission.RECORD_AUDIO"
+			]
+		},
+		"ios": {
+			"bundleIdentifier": "com.rmolines.togather",
+			"buildNumber": "2"
+		},
+		"extra": {
+			"eas": {
+				"projectId": "ef7d76cd-f9e4-480c-9457-3402b6d48a15"
+			}
+		},
+		"runtimeVersion": "1.0.0",
+		"updates": {
+			"url": "https://u.expo.dev/ef7d76cd-f9e4-480c-9457-3402b6d48a15"
+		}
+	}
 }
